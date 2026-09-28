@@ -73,3 +73,61 @@ question(spreading_fast, 'Is the disease spreading rapidly in the field?').
 question(hoppers_per_hill, 'Average number of plant hoppers per hill?').
 question(damaged_leaves, 'Percentage of leaves that are more than half damaged (0-100)?').
 
+% ---------------- RULES ----------------
+
+diagnose(rice_blast, r01)             :- seen(blast_spots).
+diagnose(brown_spot, r02)             :- seen(brown_spots).
+diagnose(narrow_brown_leaf_spot, r03) :- seen(linear_lesions).
+diagnose(leaf_scald, r04)             :- seen(chevron_lesions).
+diagnose(bacterial_leaf_blight, r05)  :- seen(orange_stripes).
+diagnose(bacterial_leaf_blight, r06)  :- seen(kresek), stage(seedling), yes(bacterial_ooze).
+diagnose(sheath_blight, r07)          :- seen(banded_lesions).
+diagnose(sheath_rot, r08)             :- seen(red_flag_sheath).
+diagnose(false_smut, r09)             :- seen(orange_balls).
+diagnose(brown_plant_hopper, r10)     :- seen(hopper_burn).
+diagnose(yellow_stem_borer, r11)      :- seen(dead_heart), stage_in([seedling, tillering]).
+diagnose(rice_leaffolder, r12)        :- seen(folded_leaves).
+diagnose(thrips, r13)                 :- seen(leaves_roll_inward), stage(seedling).
+diagnose(rice_gall_midge, r14)        :- seen(onion_shoots).
+diagnose(paddy_bug, r15)              :- seen(empty_grains), stage_in([flowering, ripening]).
+diagnose(rice_sheath_mite, r16)       :- seen(chocolate_lesions), stage(booting).
+
+threshold_reached(brown_plant_hopper, r17) :- stage(booting), at_least(hoppers_per_hill, 2).
+threshold_reached(brown_plant_hopper, r18) :- stage(flowering), at_least(hoppers_per_hill, 5).
+threshold_reached(rice_leaffolder, r19)    :- at_least(damaged_leaves, 25).
+
+advice(D, r20, 'Apply urea only at the recommended dose, or according to the leaf colour chart.') :-
+    problem(D, _, disease).
+advice(D, r21, 'Next season use certified seed paddy, add burnt paddy husk (250 kg/acre) and do not plough in infected straw.') :-
+    problem(D, _, disease), D \== bacterial_leaf_blight.
+advice(rice_blast, r22, 'Spray Tebuconazole, Isoprothiolane, Carbendazim or Tricyclazole (8-10 tanks per acre).') :-
+    yes(spreading_fast).
+advice(brown_plant_hopper, r23, 'Threshold reached: drain the field and apply a safer recommended insecticide.') :-
+    threshold_reached(brown_plant_hopper, _).
+advice(brown_plant_hopper, r24, 'Below threshold: do not spray; drain the field and keep monitoring.') :-
+    \+ threshold_reached(brown_plant_hopper, _).
+advice(rice_leaffolder, r25, 'Threshold reached: use a safer insect growth regulator (IGR).') :-
+    threshold_reached(rice_leaffolder, _).
+advice(rice_leaffolder, r26, 'Below threshold: keep proper spacing, use nitrogen at the recommended rate and monitor.') :-
+    \+ threshold_reached(rice_leaffolder, _).
+
+refer_to_expert(r27) :- \+ diagnose(_, _).
+
+rule_source(r01, s2).  rule_source(r02, s4).  rule_source(r03, s9).  rule_source(r04, s6).
+rule_source(r05, s5).  rule_source(r06, s5).  rule_source(r07, s3).  rule_source(r08, s8).
+rule_source(r09, s7).  rule_source(r10, s10). rule_source(r11, s11). rule_source(r12, s13).
+rule_source(r13, s12). rule_source(r14, s14). rule_source(r15, s15). rule_source(r16, s16).
+rule_source(r17, s10). rule_source(r18, s10). rule_source(r19, s13). rule_source(r20, s2).
+rule_source(r21, s2).  rule_source(r22, s2).  rule_source(r23, s10). rule_source(r24, s10).
+rule_source(r25, s13). rule_source(r26, s13). rule_source(r27, s1).
+
+treatment(sheath_blight, 'Spray Hexaconazole or Propiconazole (8-10 tanks per acre).').
+treatment(brown_spot, 'Next season treat seed with hot water (53-54 C for 10-12 minutes).').
+treatment(bacterial_leaf_blight, 'Stop irrigation and let the field dry; apply potassium fertilizer.').
+treatment(sheath_rot, 'Control insect vectors, especially the rice sheath mite.').
+treatment(yellow_stem_borer, 'Prepare land properly to destroy plant debris and manage weeds.').
+treatment(thrips, 'Submerge the crop for 1-2 days, or drag a wet cloth over the seedlings.').
+treatment(rice_gall_midge, 'Grow resistant varieties (e.g. Bg 304, Bg 305, Bg 357, Bg 359, Bg 360).').
+treatment(paddy_bug, 'Protect natural enemies such as the egg parasitoid Gryon nixoni.').
+treatment(rice_sheath_mite, 'Apply an approved insecticide; after harvest plough in or burn crop residue.').
+
