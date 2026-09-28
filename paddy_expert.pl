@@ -131,3 +131,30 @@ treatment(rice_gall_midge, 'Grow resistant varieties (e.g. Bg 304, Bg 305, Bg 35
 treatment(paddy_bug, 'Protect natural enemies such as the egg parasitoid Gryon nixoni.').
 treatment(rice_sheath_mite, 'Apply an approved insecticide; after harvest plough in or burn crop residue.').
 
+% ---------------- INFERENCE ENGINE ----------------
+
+seen(S)        :- fact(seen, S).
+stage(S)       :- fact(stage, S).
+stage_in(List) :- fact(stage, S), member(S, List).
+
+yes(Q) :- fact(Q, Answer), !, Answer == yes.
+yes(Q) :- question(Q, Text), ask_yes_no(Text, Answer), assertz(fact(Q, Answer)), Answer == yes.
+
+at_least(Q, Min) :- fact(Q, N), !, N >= Min.
+at_least(Q, Min) :- question(Q, Text), ask_number(Text, N), assertz(fact(Q, N)), N >= Min.
+
+because(Head, Text) :-
+    clause(Head, Body),
+    conditions(Body, List),
+    maplist(describe, List, Texts),
+    atomic_list_concat(Texts, ' AND ', Text).
+
+conditions((A, B), [A|Rest]) :- !, conditions(B, Rest).
+conditions(A, [A]).
+
+describe(seen(S), T)        :- symptom(_, S, T).
+describe(stage(S), T)       :- format(atom(T), 'stage is ~w', [S]).
+describe(stage_in(L), T)    :- atomic_list_concat(L, ' or ', A), format(atom(T), 'stage is ~w', [A]).
+describe(yes(Q), T)         :- format(atom(T), '~w = yes', [Q]).
+describe(at_least(Q, N), T) :- format(atom(T), '~w >= ~w', [Q, N]).
+
