@@ -3,6 +3,7 @@
 % Knowledge source: Rice Research and Development Institute (RRDI),
 % Department of Agriculture, Sri Lanka
 
+:- initialization(main, main).
 :- dynamic fact/2.
 
 % ---------------- KNOWLEDGE BASE ----------------
@@ -158,3 +159,106 @@ describe(stage_in(L), T)    :- atomic_list_concat(L, ' or ', A), format(atom(T),
 describe(yes(Q), T)         :- format(atom(T), '~w = yes', [Q]).
 describe(at_least(Q, N), T) :- format(atom(T), '~w >= ~w', [Q, N]).
 
+% ---------------- USER INTERFACE ----------------
+
+main :-
+    format("~n==========================================================~n"),
+    format("  PADDY PEST & DISEASE DIAGNOSIS EXPERT SYSTEM~n"),
+    format("==========================================================~n"),
+    repeat,
+        diagnose_field,
+        ask_yes_no('Diagnose another field?', no),
+    !,
+    format("~nGoodbye.~n").
+
+diagnose_field :-
+    retractall(fact(_, _)),
+    findall(S-N, stage_name(S, N), Stages),
+    ask_one('1. What is the growth stage of the crop?', Stages, Stage),
+    assertz(fact(stage, Stage)),
+    findall(P-N, part_name(P, N), Parts),
+    ask_many('2. Where do you see the symptoms?', Parts, ChosenParts),
+    findall(S-T, (member(P, ChosenParts), symptom(P, S, T)), Symptoms),
+    ask_many('3. Which of these do you see?', Symptoms, Seen),
+    forall(member(S, Seen), assertz(fact(seen, S))),
+    findall(D, diagnose(D, _), Ds),
+    sort(Ds, Problems),
+    findall(D-A, (member(D, Problems), findall(R-T, advice(D, R, T), A)), Results),
+    format("~n------------------------- RESULT -------------------------~n"),
+    forall(member(D-A, Results), show(D, A)),
+    (   refer_to_expert(R)
+    ->  format("~nNo pest or disease identified [~w].~n", [R]),
+        format("Send affected plants and the field history to a diagnostic expert.~n")
+    ;   true
+    ).
+
+show(D, Advice) :-
+    problem(D, Name, Type),
+    format("~n>> ~w (~w)~n", [Name, Type]),
+    forall(diagnose(D, R), explain(diagnose(D, R))),
+    forall(threshold_reached(D, R), explain(threshold_reached(D, R))),
+    format("   What to do:~n"),
+    forall(member(R-T, Advice), format("   - ~w [~w]~n", [T, R])),
+    forall(treatment(D, T), format("   - ~w~n", [T])).
+
+explain(Head) :-
+    arg(2, Head, R),
+    rule_source(R, S),
+    source(S, Title, _),
+    because(Head, Because),
+    format("   Rule ~w (~w):~n     ~w~n", [R, Title, Because]).
+
+ask_one(Question, Options, Key) :-
+    format("~n~w~n", [Question]),
+    show_options(Options, 1),
+    length(Options, Max),
+    repeat,
+        format("Enter a number > "),
+        read_line(Line),
+        number_string(N, Line), integer(N), between(1, Max, N),
+    !,
+    nth1(N, Options, Key-_).
+
+ask_many(_, [], []) :- !.
+ask_many(Question, Options, Keys) :-
+    format("~n~w~n", [Question]),
+    show_options(Options, 1),
+    format("  0. None of these~n"),
+    length(Options, Max),
+    repeat,
+        format("Enter one or more numbers (e.g. 1 3) > "),
+        read_line(Line),
+        split_string(Line, " ,", " ,", Parts),
+        exclude(==(""), Parts, Words),
+        maplist(number_string, Ns, Words),
+        forall(member(N, Ns), (integer(N), between(0, Max, N))),
+    !,
+    findall(K, (member(N, Ns), N > 0, nth1(N, Options, K-_)), Keys).
+
+show_options([], _).
+show_options([_-Label|Rest], N) :-
+    format("  ~w. ~w~n", [N, Label]),
+    N1 is N + 1,
+    show_options(Rest, N1).
+
+ask_yes_no(Question, Answer) :-
+    repeat,
+        format("~n~w (y/n) > ", [Question]),
+        read_line(Line),
+        (   Line == "y" -> A = yes ; Line == "n" -> A = no ),
+    !,
+    Answer = A.
+
+ask_number(Question, N) :-
+    repeat,
+        format("~n~w > ", [Question]),
+        read_line(Line),
+        number_string(N, Line), N >= 0,
+    !.
+
+read_line(Line) :-
+    read_line_to_string(user_input, L),
+    (   L == end_of_file -> halt ; true ),
+    (   stream_property(user_input, tty(true)) -> true ; format("~w~n", [L]) ),
+    string_lower(L, L1),
+    normalize_space(string(Line), L1).
